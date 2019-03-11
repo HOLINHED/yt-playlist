@@ -114,6 +114,7 @@ function makePlaylist(auth) {
    const query = "study music | zen music -livestream -live";
    // Initial search for videos
    Youtube.search.list({
+      auth: auth,
       part: 'snippet',
       q: query,
       safeSearch: 'strict',
@@ -128,7 +129,9 @@ function makePlaylist(auth) {
       let IDS = "";
       // Stores video ids
       data.data.items.forEach(element => IDS += `${element.id.videoId},`);
+
          Youtube.videos.list({
+            auth: auth,
             id: IDS,
             part: 'contentDetails',
          }, function(err, data) {
@@ -144,5 +147,4 @@ function makePlaylist(auth) {
          
       }
    });
-
 }
