@@ -20,6 +20,9 @@ yarn-error.log*
 *.sln
 *.sw*
 
-# my api key plz no steal
+# my api keys plz no steal
 config.json
 credentials.json
+client_secret.json
+client_secret2.json
+token.json
