@@ -1,6 +1,7 @@
 import fs from 'fs';
 import readline from 'readline';
 import { google } from 'googleapis';
+import { parse, end, toSeconds, pattern } from 'iso8601-duration';
 
 const OAuth2 = google.auth.OAuth2;
     
@@ -9,6 +10,11 @@ const OAuth2 = google.auth.OAuth2;
 const SCOPES = ['https://www.googleapis.com/auth/youtube'];
 const TOKEN_DIR = __dirname + '/';
 const TOKEN_PATH = TOKEN_DIR + 'token.json';
+
+// STORES TIME OF PLAYLIST IN MINUTES
+let totalTime = 0;
+let videoIds = "";
+let TIMER;
     
 // Load client secrets from a local file.
 fs.readFile('client_secret.json', function processClientSecrets(err, content) {
@@ -17,7 +23,18 @@ if (err) {
    return;
 }
    // Authorize a client with the loaded credentials, then call the YouTube API.
-   authorize(JSON.parse(content), makePlaylist);
+   //authorize(JSON.parse(content), findVideos);
+
+   TIMER = setInterval(function() {
+
+      if (totalTime > (7 * 60)) {
+         clearInterval(TIMER);
+         authorize(JSON.parse(content), makePlaylist);
+      } else {
+         authorize(JSON.parse(content), findVideos);
+      }
+
+   }, 1000);
 
 });
     
@@ -70,10 +87,7 @@ function getNewToken(oauth2Client, callback) {
    rl.question('Enter the code from that page here: ', code => {
       rl.close();
       oauth2Client.getToken(code, (err, token) => {
-         if (err) {
-            console.log('Error while trying to retrieve access token', err);
-            return;
-         }
+         if (err) throw err;
          oauth2Client.credentials = token;
          storeToken(token);
          callback(oauth2Client);
@@ -102,27 +116,29 @@ function storeToken(token) {
 }
     
 /**
-* Lists the names and IDs of up to 10 files.
+* Finds a video matching the query and adds it to the ids. 
 *
 * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
 */
-function makePlaylist(auth) {
+function findVideos(auth) {
 
-   const Youtube = google.youtube('v3');
+   const Youtube = google.youtube({
+      version:'v3',
+      auth
+   });
 
    // Search query for videos. "|" = OR   "-" = NOT
    const query = "study music | zen music -livestream -live";
    // Initial search for videos
    Youtube.search.list({
-      auth: auth,
       part: 'snippet',
       q: query,
       safeSearch: 'strict',
-      maxResults: 5,
+      maxResults: 1,
       type: 'video'
    }, function (err, data) {
       
-      if (err) console.error('Error: ' + err);
+      if (err) throw err;
       
       if (data) {
       //console.log(data.data.items)
@@ -131,20 +147,46 @@ function makePlaylist(auth) {
       data.data.items.forEach(element => IDS += `${element.id.videoId},`);
 
          Youtube.videos.list({
-            auth: auth,
             id: IDS,
             part: 'contentDetails',
          }, function(err, data) {
-            if (err) console.error(err);
+            if (err) throw err;
             if (data) {
                
                for (let video of data.data.items) {
                   //console.log(video);
-                  console.log(`ID: ${video.id}\nDURATION: ${video.contentDetails.duration}\n`);
+
+                  const dur = parse(video.contentDetails.duration);
+
+                  const mins = (dur.hours * 60) + dur.minutes;
+
+                  totalTime += mins;
+                  videoIds += `${video.id},`;
+
+                  //console.log(`ID: ${video.id}\nDURATION: ${mins} mins\n`);
+                  console.log('FOUND VIDEO!');
+                  //console.log('TOTAL TIME: ' + totalTime);
                }
             }
          });
          
       }
    });
+}
+
+/**
+* Makes a playlist out of video ids.
+*
+* @param {google.auth.OAuth2} auth An authorized OAuth2 client.
+*/
+function makePlaylist(auth) {
+   
+   console.log('total time:', totalTime);
+   console.log('video ids:', videoIds);
+
+   const Youtube = google.youtube({
+      version:'v3',
+      auth
+   });
+
 }
