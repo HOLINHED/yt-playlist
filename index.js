@@ -1,7 +1,7 @@
 import fs from 'fs';
 import readline from 'readline';
 import { google } from 'googleapis';
-import { parse, end, toSeconds, pattern } from 'iso8601-duration';
+import { parse } from 'iso8601-duration';
 
 const OAuth2 = google.auth.OAuth2;
     
@@ -14,7 +14,7 @@ const TOKEN_PATH = TOKEN_DIR + 'token.json';
 // STORES TIME OF PLAYLIST IN MINUTES
 let totalTime = 0;
 let videoIds = "";
-let TIMER;
+const MAX_SEARCH = 10;
     
 // Load client secrets from a local file.
 fs.readFile('client_secret.json', function processClientSecrets(err, content) {
@@ -22,19 +22,8 @@ if (err) {
    console.log('Error loading client secret file: ' + err);
    return;
 }
-   // Authorize a client with the loaded credentials, then call the YouTube API.
-   //authorize(JSON.parse(content), findVideos);
-
-   TIMER = setInterval(function() {
-
-      if (totalTime > (7 * 60)) {
-         clearInterval(TIMER);
-         authorize(JSON.parse(content), makePlaylist);
-      } else {
-         authorize(JSON.parse(content), findVideos);
-      }
-
-   }, 1000);
+   // find videos
+   authorize(JSON.parse(content), findVideos);
 
 });
     
@@ -129,12 +118,13 @@ function findVideos(auth) {
 
    // Search query for videos. "|" = OR   "-" = NOT
    const query = "study music | zen music -livestream -live";
+
    // Initial search for videos
    Youtube.search.list({
       part: 'snippet',
       q: query,
       safeSearch: 'strict',
-      maxResults: 1,
+      maxResults: MAX_SEARCH,
       type: 'video'
    }, function (err, data) {
       
@@ -154,7 +144,6 @@ function findVideos(auth) {
             if (data) {
                
                for (let video of data.data.items) {
-                  //console.log(video);
 
                   const dur = parse(video.contentDetails.duration);
 
@@ -163,10 +152,14 @@ function findVideos(auth) {
                   totalTime += mins;
                   videoIds += `${video.id},`;
 
-                  //console.log(`ID: ${video.id}\nDURATION: ${mins} mins\n`);
-                  console.log('FOUND VIDEO!');
-                  //console.log('TOTAL TIME: ' + totalTime);
+                  if (totalTime >= 60 * 7) {
+                     
+                     break;
+                  }
+
                }
+
+               makePlaylist(auth);
             }
          });
          
@@ -184,9 +177,9 @@ function makePlaylist(auth) {
    console.log('total time:', totalTime);
    console.log('video ids:', videoIds);
 
-   const Youtube = google.youtube({
-      version:'v3',
-      auth
-   });
+   //const Youtube = google.youtube({
+   //   version:'v3',
+   //   auth
+   //});
 
 }
