@@ -2,6 +2,7 @@ import fs from 'fs';
 import readline from 'readline';
 import { google } from 'googleapis';
 import { parse } from 'iso8601-duration';
+import generateID from './makeid.js';
 
 const OAuth2 = google.auth.OAuth2;
     
@@ -15,6 +16,7 @@ const TOKEN_PATH = TOKEN_DIR + 'token.json';
 let totalTime = 0;
 let videoIds = "";
 const MAX_SEARCH = 10;
+const QUERY = "study music | zen music -livestream -live";
     
 // Load client secrets from a local file.
 fs.readFile('client_secret.json', function processClientSecrets(err, content) {
@@ -117,7 +119,7 @@ function findVideos(auth) {
    });
 
    // Search query for videos. "|" = OR   "-" = NOT
-   const query = "study music | zen music -livestream -live";
+   const query = QUERY;
 
    // Initial search for videos
    Youtube.search.list({
@@ -139,8 +141,10 @@ function findVideos(auth) {
          Youtube.videos.list({
             id: IDS,
             part: 'contentDetails',
-         }, function(err, data) {
+         }, (err, data) => {
+            
             if (err) throw err;
+            
             if (data) {
                
                for (let video of data.data.items) {
@@ -152,17 +156,13 @@ function findVideos(auth) {
                   totalTime += mins;
                   videoIds += `${video.id},`;
 
-                  if (totalTime >= 60 * 7) {
-                     
-                     break;
-                  }
-
+                  if (totalTime >= 60 * 7) break;
+                  
                }
 
                makePlaylist(auth);
             }
          });
-         
       }
    });
 }
@@ -174,12 +174,32 @@ function findVideos(auth) {
 */
 function makePlaylist(auth) {
    
-   console.log('total time:', totalTime);
-   console.log('video ids:', videoIds);
+   //console.log('total time:', totalTime);
+   //console.log('video ids:', videoIds);
 
-   //const Youtube = google.youtube({
-   //   version:'v3',
-   //   auth
-   //});
+   //videoIds
+
+   const PTITLE = 'playlist-' + generateID(6);
+
+   const Youtube = google.youtube({
+      version:'v3',
+      auth
+   });
+
+   Youtube.playlists.insert({
+      part: 'snippet',
+      resource: {
+         snippet: {
+            title: `${PTITLE}`
+         }
+      }
+   }, (data) => {
+
+      if (data) {
+         console.log(data);
+
+      }
+   })
+   .catch (err => console.log(err));
 
 }
