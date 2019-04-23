@@ -14,7 +14,7 @@ const TOKEN_PATH = TOKEN_DIR + 'token.json';
 
 // STORES TIME OF PLAYLIST IN MINUTES
 let totalTime = 0;
-let videoIds = "";
+let videoIds = [];
 const MAX_SEARCH = 10;
 const QUERY = "study music | zen music -livestream -live";
     
@@ -154,7 +154,7 @@ function findVideos(auth) {
                   const mins = (dur.hours * 60) + dur.minutes;
 
                   totalTime += mins;
-                  videoIds += `${video.id},`;
+                  videoIds.push(video.id);
 
                   if (totalTime >= 60 * 7) break;
                   
@@ -174,8 +174,8 @@ function findVideos(auth) {
 */
 function makePlaylist(auth) {
    
-   //console.log('total time:', totalTime);
-   //console.log('video ids:', videoIds);
+   console.log('total time:', totalTime);
+   console.log('video ids:', videoIds);
 
    //videoIds
 
@@ -193,13 +193,37 @@ function makePlaylist(auth) {
             title: `${PTITLE}`
          }
       }
-   }, (data) => {
+   }, (err,data) => {
+
+      if (err) throw err;
 
       if (data) {
-         console.log(data);
 
+         const PLAYLIST_ID = data.data.id;
+      
+         for (let this_video_id of videoIds) {
+            Youtube.playlistItems.insert({
+               part: "snippet",
+               resource: {
+                  snippet: {
+                     playlistId: PLAYLIST_ID,
+                     position: 0,
+                     resourceId: {
+                        kind: "youtube#video",
+                        videoId: this_video_id,
+                     }
+                  }
+               }
+            }, (e,dat) => {
+               if (e) throw e;
+               if (dat) {
+                  console.log("-------ADDED VIDEO TO PLAYLIST!-------");
+                  console.log(dat);
+                  setTimeout(function() {},1000 * 1);
+               }
+            });
+         }
       }
-   })
-   .catch (err => console.log(err));
+   });
 
 }
